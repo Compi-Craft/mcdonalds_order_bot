@@ -1,13 +1,5 @@
-from .ai_module import LLMClient
-
+from .order_manager import OrderManager
 def main_loop():
-    client = LLMClient()
-    print("👋 Welcome to McDonald's! What can I get you started with?")
+    client = OrderManager()
     while True:
-        user_input = input("🧑 You: ")
-        if user_input.lower() in ["exit", "quit", "that's all", "nothing more"]:
-            print("✅ Thank you for your order!")
-            break
-        result = client.ask_llm(user_input)
-        print("🤖 System parsed:")
-        print(result)
+        client.do_turn()

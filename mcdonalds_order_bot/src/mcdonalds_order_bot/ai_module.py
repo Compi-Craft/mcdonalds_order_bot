@@ -1,7 +1,6 @@
 import openai
 import instructor
-from . import API_KEY
-from .menu_builder import create_menu
+from . import API_KEY, MENU
 from .models import Order
 
 class LLMClient:
@@ -11,45 +10,103 @@ class LLMClient:
         self.model = "gpt-4o-mini"
         self.temperature = 0.2
         self.repeat_times = 5
-        self.menu = create_menu()
+        self.menu = MENU
         self.system_prompt = self.build_system_prompt()
         self.messages = []
 
     def build_system_prompt(self):
         return f"""
-You are a McDonald's virtual assistant. Your job is to extract structured order data from user messages.
+You are a McDonald's virtual assistant. Your job is to update current order state based on user message.
 
---- MENU (YAML) ---
+--- MENU ---
 {self.menu}
 -------------------
 
+-------------------
 RULES:
-- Only extract items that are present in the menu.
-- A combo includes a burger, a drink and fries (both can be specified by user)
-- Ingredients cannot be ordered standalone.
-- Users can exclude ingredients or add extra ones.
-- When modifying ingredients of a combo, specify them inside the "ingredients" object under the appropriate key, e.g. "ingredients": {{"burger": {{"excluded": [...], "extra": [...]}}}}.
-- Do not place excluded or extra ingredients directly under the combo without specifying the target element (burger, drink, etc.).
-- If the user mentions a virtual item (like "drink", "dessert", "burger") but does not specify the actual item (like "Coca-Cola", "Big Mac", etc.), treat it as a virtual item. Add its name (e.g. "drink") to the `virtual_items` list.
-- Virtual items are separete from one in combo (adding drink to combo has nothing to do with virtual items and opposite)
-- Output the full current order state as JSON matching the specified schema.
+- Each request to you is independent, you should base only on current state
+- Always fill all fields in responce (if you don't need to change anything for specific field, keep it from current state)
+- ALWAYS COPY FROM CURRENT STATE this fields "combo_suggested", "sauce_suggested" - LEAVE THEM SAME AS IN CURRENT_STATE
+- You will recive current order state and user input. You must update it based on user input
+- It's okay to leave order state unchanged
+- Use category names from menu only
+- You should include only items from menu
+- You have separeted field for "combo" with fries and drinks
+- Asking large or small fries or drink for combo should change it's whole size to large or small accordingly
+- If user don't specify drink for combo, leave it empty
+- If user asks for combo or meal, use combo item structure with drink, fries and sause fields
+- You will recive user input in current conversation field and history of messages in previous conversation field
+- Don't include size if user didn't specified it clearly
+- All virtual items have field named "virtual_items"
+- If user don't specify item he want and use common words from virtual category given in menu, add it to virtual_items
+- After user specifies item, it should be removed from virtuals
+- If user mentions that it's end of order on current turn, or say's he doesn't want anything else, set 'finish_order" to true
+- Ingredient can't be ordered as standallone items
+- You can insert ingredients only from menu and they should be capitalized
+------------------
+
+--- User prompt structure ---
+User input: current user request
+Current state: current order state
+Current conversation:  last system and user message
+Previous conversation:  history of user/system conversation
 ------------------
 """
 
-    def ask_llm(self, user_input):
-        self.messages.append({"role": "user", "content": user_input})
-        chat_history = [
+    def create_examples(self):
+        return [
+    {"role": "user", "content":
+"""You should parse input of user to update current order state
+User input: i want drink
+Current state: None
+Current conversation: ["👋 Welcome to McDonald's! What can I get you started with?", 'i want some drink']
+Previous conversation: ["👋 Welcome to McDonald's! What can I get you started with?", 'i want some drink']"""},
+    {"role": "assistant", "content": "{'items': [], 'virtual_items': [{'type': 'drink'}], 'finish_order': False}"},
+    {"role": "user", "content": 
+"""You should parse input of user to update current order state
+User input: sprite
+Current state - {'items': [], 'virtual_items': [{'type': 'drink'}], 'finish_order': False}
+Current conversation - ['Please specify which drink do you want', 'sprite']
+Previous conversation - ["👋 Welcome to McDonald's! What can I get you started with?", 'i want some drink', 'Please specify which drink do you want', 'sprite']"""},
+    {"role": "assistant", "content": "{'items': [{'type': 'drink', 'name': 'Sprite', 'quantity': 1, 'properties': None, 'ingredients': None, 'combo_suggested': False}], 'finish_order': False}"},
+    {"role": "user", "content": 
+"""You should parse input of user to update current order state
+User input: no
+Current state: {'items': [{'type': 'burger', 'name': 'Cheeseburger', 'quantity': 1, 'properties': None, 'ingredients': None, 'combo_suggested': True}], 'virtual_items': [], 'finish_order': False}
+Current conversation: ['Do you want to turn your Cheeseburger into combo?', 'no']
+Previous conversation: ["👋 Welcome to McDonald's! What can I get you started with?", 'i want cheeseburger', 'Do you want to turn your Cheeseburger into combo?', 'no']
+"""},
+    {"role": "assistant", "content": "{'items': [{'type': 'burger', 'name': 'Cheeseburger', 'quantity': 1, 'properties': None, 'ingredients': None, 'combo_suggested': True}], 'virtual_items': [], 'finish_order': False}"},
+    {"role": "user", "content": 
+"""You should parse input of user to update current order state
+User input: i don't want tomatoes in my burger
+Current state: {'items': [{'type': 'combos', 'name': 'Big Mac Meal', 'quantity': 1, 'fries': 'French Fries', 'drink': 'Coca-Cola', 'properties': None, 'ingredients': None, 'sauce': None, 'sauce_suggested': False}], 'virtual_items': [], 'finish_order': False}
+Current conversation: ['Do you want something else?', 'i don't want tomatoes in my burger']
+Previous conversation: ["👋 Welcome to McDonald's! What can I get you started with?", 'i want big mac combo', 'Do you want something else?', 'i don't want tomatoes in my burger']
+"""},
+    {"role": "assistant", "content": "{'items': [{'type': 'combos', 'name': 'Big Mac Combo', 'quantity': 1, 'fries': 'French Fries', 'drink': 'Coca-Cola', 'properties': {'size': 'medium'}, 'ingredients': {'burgers': {'excluded': ['Tomato'], 'extra': []}}, 'sauce': None, 'sauce_suggested': False}], 'virtual_items': [], 'finish_order': False}"}
+        ]
+
+    def create_chat_history(self):
+        return [
             {"role": "system", "content": self.system_prompt}
         ]
-        history = chat_history + self.messages
+
+    def ask_llm(self, current_conv, previous_conv, current_state):
+        chat_history = self.create_chat_history() + self.create_examples()
+        user_prompt = f"""You should parse input of user to update current order state
+User input: {current_conv[1]}
+Current state: {current_state}
+Current conversation: {current_conv}
+"""
+        request = {"role": "user", "content": user_prompt}
+        chat_history.append(request)
         response = self.client.chat.completions.create(
             model=self.model,
             max_retries=self.repeat_times,
-            messages=history,
-            temperature=0.2,
+            messages=chat_history,
+            temperature=self.temperature,
             response_model = Order
         )
-        self.messages.append({"role": "assistant", "content": str(response.model_dump())})
-        return response.model_dump()
-
-        
+        result = response.model_dump(exclude_unset=False)
+        return result
