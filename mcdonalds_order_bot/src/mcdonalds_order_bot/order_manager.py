@@ -1,7 +1,8 @@
 from . import MENU, TRANSLATIONS
 from .menu_builder import build_check_menu, ingredient_menu, price_menu
 from .ai_module import LLMClient
-import sys
+import functools
+import asyncio
 
 class OrderManager:
     
@@ -15,21 +16,23 @@ class OrderManager:
         self.price_menu = price_menu()
         self.client = LLMClient()
         self.history = []
+        self.queue = asyncio.Queue()
 
-    def do_turn(self):
+    async def do_turn(self):
         if self.state == "greeting":
-            self.send_message("👋 Welcome to McDonald's! What can I get you started with?")
+            await self.send_message("👋 Welcome to McDonald's! What can I get you started with?")
         elif self.state == "validated":
-            self.send_message("Do you want something else?")
+            await self.send_message("Do you want something else?")
         elif self.state == "finish":
             self.finish()
+            return
         else:
-            self.send_message(self.state)
+            await self.send_message(self.state)
 
-        if self.check_for_finish() is True:
+        if self.check_for_finish():
             return
 
-        msg = self.validate()            
+        msg = self.validate()
         self.state = msg
 
     def check_for_finish(self):
@@ -147,7 +150,8 @@ class OrderManager:
 Total sum: {total_sum} $
 Your order: {self.current_state}"""
         print("🤖 System: ", message)
-        sys.exit(0)
+        asyncio.get_event_loop().stop()
+        return message
 
     def show_order(self):
         pass
@@ -213,11 +217,44 @@ Your order: {self.current_state}"""
         # TODO: "Check Deals"
         pass
 
-    def send_message(self, message):
+    async def send_message(self, message):
         print("🤖 System:", message)
         print("CURRENT STATE: ", self.current_state)
         self.history.append(message)
-        user_input = input("🧑 You: ")
+
+        user_input = await self.queue.get()
         self.history.append(user_input)
-        self.order = self.client.ask_llm([message, user_input], self.history, self.current_state)
-        print("LLM responce: ", self.order)
+
+        loop = asyncio.get_event_loop()
+        bound_func = functools.partial(
+            self.client.ask_llm,
+            [message, user_input],
+            self.history,
+            self.current_state
+        )
+        self.order = await loop.run_in_executor(None, bound_func)
+        print("LLM response:", self.order)
+
+    def chat_turn(self, user_input: str) -> str:
+        # Визначити поточне системне повідомлення залежно від стану
+        if self.state == "finish":
+            return "Order is already finished."
+
+        if self.state == "greeting":
+            system_msg = "👋 Welcome to McDonald's! What can I get you started with?"
+        elif self.state == "validated":
+            system_msg = "Do you want something else?"
+        else:
+            system_msg = self.state
+        self.history.append(system_msg)
+        self.history.append(user_input)
+        self.order = self.client.ask_llm([system_msg, user_input], self.history, self.current_state)
+        if self.check_for_finish():
+            self.state = "finish"
+            total_sum = self.finalize()
+            return f"Thank you for your order!\nTotal sum: {total_sum} $\nYour order: {self.current_state}"
+        msg = self.validate()
+        self.state = msg
+        if msg == "validated":
+            return "Do you want something else?"
+        return msg

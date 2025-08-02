@@ -38,7 +38,7 @@ RULES:
 - You will recive user input in current conversation field and history of messages in previous conversation field
 - Don't include size if user didn't specified it clearly
 - All virtual items have field named "virtual_items"
-- If user don't specify item he want and use common words from virtual category given in menu, add it to virtual_items
+- If user asks for drink, burger etc (from virtuals list) and doesn'y clearly specify which one, add that to virtual_items field
 - After user specifies item, it should be removed from virtuals
 - If user mentions that it's end of order on current turn, or say's he doesn't want anything else, set 'finish_order" to true
 - Ingredient can't be ordered as standallone items
@@ -58,7 +58,7 @@ Previous conversation:  history of user/system conversation
     {"role": "user", "content":
 """You should parse input of user to update current order state
 User input: i want drink
-Current state: None
+Current state: {'items': [], 'virtual_items': [], 'finish_order': False}
 Current conversation: ["👋 Welcome to McDonald's! What can I get you started with?", 'i want some drink']
 Previous conversation: ["👋 Welcome to McDonald's! What can I get you started with?", 'i want some drink']"""},
     {"role": "assistant", "content": "{'items': [], 'virtual_items': [{'type': 'drink'}], 'finish_order': False}"},
@@ -68,23 +68,23 @@ User input: sprite
 Current state - {'items': [], 'virtual_items': [{'type': 'drink'}], 'finish_order': False}
 Current conversation - ['Please specify which drink do you want', 'sprite']
 Previous conversation - ["👋 Welcome to McDonald's! What can I get you started with?", 'i want some drink', 'Please specify which drink do you want', 'sprite']"""},
-    {"role": "assistant", "content": "{'items': [{'type': 'drink', 'name': 'Sprite', 'quantity': 1, 'properties': None, 'ingredients': None, 'combo_suggested': False}], 'finish_order': False}"},
+    {"role": "assistant", "content": "{'items': [{'type': 'drink', 'name': 'Sprite', 'quantity': 1, 'size': None, 'ingredients': None, 'combo_suggested': False}], 'finish_order': False}"},
     {"role": "user", "content": 
 """You should parse input of user to update current order state
 User input: no
-Current state: {'items': [{'type': 'burger', 'name': 'Cheeseburger', 'quantity': 1, 'properties': None, 'ingredients': None, 'combo_suggested': True}], 'virtual_items': [], 'finish_order': False}
+Current state: {'items': [{'type': 'burger', 'name': 'Cheeseburger', 'quantity': 1, 'size': None, 'ingredients': None, 'combo_suggested': True}], 'virtual_items': [], 'finish_order': False}
 Current conversation: ['Do you want to turn your Cheeseburger into combo?', 'no']
 Previous conversation: ["👋 Welcome to McDonald's! What can I get you started with?", 'i want cheeseburger', 'Do you want to turn your Cheeseburger into combo?', 'no']
 """},
-    {"role": "assistant", "content": "{'items': [{'type': 'burger', 'name': 'Cheeseburger', 'quantity': 1, 'properties': None, 'ingredients': None, 'combo_suggested': True}], 'virtual_items': [], 'finish_order': False}"},
+    {"role": "assistant", "content": "{'items': [{'type': 'burger', 'name': 'Cheeseburger', 'quantity': 1, 'size': None, 'ingredients': None, 'combo_suggested': True}], 'virtual_items': [], 'finish_order': False}"},
     {"role": "user", "content": 
 """You should parse input of user to update current order state
 User input: i don't want tomatoes in my burger
-Current state: {'items': [{'type': 'combos', 'name': 'Big Mac Meal', 'quantity': 1, 'fries': 'French Fries', 'drink': 'Coca-Cola', 'properties': None, 'ingredients': None, 'sauce': None, 'sauce_suggested': False}], 'virtual_items': [], 'finish_order': False}
+Current state: {'items': [{'type': 'combos', 'name': 'Big Mac Meal', 'quantity': 1, 'fries': 'French Fries', 'drink': 'Coca-Cola', 'size': None, 'ingredients': None, 'sauce': None, 'sauce_suggested': False}], 'virtual_items': [], 'finish_order': False}
 Current conversation: ['Do you want something else?', 'i don't want tomatoes in my burger']
 Previous conversation: ["👋 Welcome to McDonald's! What can I get you started with?", 'i want big mac combo', 'Do you want something else?', 'i don't want tomatoes in my burger']
 """},
-    {"role": "assistant", "content": "{'items': [{'type': 'combos', 'name': 'Big Mac Combo', 'quantity': 1, 'fries': 'French Fries', 'drink': 'Coca-Cola', 'properties': {'size': 'medium'}, 'ingredients': {'burgers': {'excluded': ['Tomato'], 'extra': []}}, 'sauce': None, 'sauce_suggested': False}], 'virtual_items': [], 'finish_order': False}"}
+    {"role": "assistant", "content": "{'items': [{'type': 'combos', 'name': 'Big Mac Combo', 'quantity': 1, 'fries': 'French Fries', 'drink': 'Coca-Cola', 'size': 'medium', 'ingredients': {'burgers': {'excluded': ['Tomato'], 'extra': []}}, 'sauce': None, 'sauce_suggested': False}], 'virtual_items': [], 'finish_order': False}"}
         ]
 
     def create_chat_history(self):
@@ -98,6 +98,7 @@ Previous conversation: ["👋 Welcome to McDonald's! What can I get you started 
 User input: {current_conv[1]}
 Current state: {current_state}
 Current conversation: {current_conv}
+Previous conversation: {previous_conv}
 """
         request = {"role": "user", "content": user_prompt}
         chat_history.append(request)

@@ -22,7 +22,7 @@ class BaseItem(BaseModel):
     type: Literal['burgers', 'drinks', 'fries', 'desserts', 'sauces']
     name: str
     quantity: int = 1
-    size: Literal['small', 'medium', 'large'] = 'medium'
+    size: Optional[Literal['small', 'medium', 'large']] = None
     ingredients: IngredientChange = Field(default_factory=IngredientChange)
     combo_suggested: bool = False
 
