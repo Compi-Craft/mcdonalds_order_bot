@@ -25,7 +25,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function appendMessage(text, cls) {
         const chat = document.getElementById("chat");
         const msg = document.createElement("div");
-        msg.textContent = text;
+        msg.innerHTML = text.replace(/\n/g, "<br>");
         msg.className = "msg " + cls;
         chat.appendChild(msg);
         chat.scrollTop = chat.scrollHeight;

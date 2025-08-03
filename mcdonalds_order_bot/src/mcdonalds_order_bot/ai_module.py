@@ -28,6 +28,7 @@ RULES:
 - Always fill all fields in responce (if you don't need to change anything for specific field, keep it from current state)
 - ALWAYS COPY FROM CURRENT STATE this fields "combo_suggested", "sauce_suggested" - LEAVE THEM SAME AS IN CURRENT_STATE
 - You will recive current order state and user input. You must update it based on user input
+- CURRENT STATE REPRESENTS WHAT USER HAVE ALREADY ORDERED. So add item if user asks, remove if only he asks and replace if he asks
 - It's okay to leave order state unchanged
 - Use category names from menu only
 - You should include only items from menu
@@ -43,6 +44,10 @@ RULES:
 - If user mentions that it's end of order on current turn, or say's he doesn't want anything else, set 'finish_order" to true
 - Ingredient can't be ordered as standallone items
 - You can insert ingredients only from menu and they should be capitalized
+- User can ask for double deals which consists of two burgers
+- Add double deals to deals list
+- User can ask for multiple double deals, add them to list
+- User must SPECIFY items for double deal, don't do guesses and leave Nones if user doesn't clearly mentions which burgers he wants
 ------------------
 
 --- User prompt structure ---

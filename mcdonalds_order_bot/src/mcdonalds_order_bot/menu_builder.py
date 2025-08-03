@@ -95,5 +95,14 @@ def price_menu():
         price_menu['ingredients'][product['name']] = product['price']
     return price_menu
 
+def deals_menu():
+    with open(MENU_PATH.format("menu_deals.yaml"), "r") as f:
+        menu = yaml.safe_load(f)
+    deals_menu = {}
+    deals = menu['deals']
+    for deal in deals:
+        deals_menu[deal['name']] = deal['possible_items']
+    return deals_menu
+
 if __name__ == "__main__":
     print(ingredient_menu())

@@ -18,6 +18,10 @@ dependencies = [
 ]
 
 [tool.poetry]
+name = "mcdonalds-order-bot"
+version = "0.1.0"
+description = ""
+authors = ["Compi-craft <ozarko.pn@ucu.edu.ua>"]
 packages = [{include = "mcdonalds_order_bot", from = "src"}]
 
 

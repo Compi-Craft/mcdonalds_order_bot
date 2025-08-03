@@ -42,10 +42,19 @@ class ComboItem(BaseModel):
 
 
 class VirtualItem(BaseModel):
-    type: str  # e.g., "drink", "dessert"
+    type: str
 
+class BurgerItem(BaseModel):
+    type: Literal['burgers']
+    name: str
+    ingredients: IngredientChange = Field(default_factory=IngredientChange)
+
+class DoubleDeal(BaseModel):
+    burger1: Optional[BurgerItem] = None
+    burger2: Optional[BurgerItem] = None
 
 class Order(BaseModel):
     items: List[Union[BaseItem, ComboItem]]
     virtual_items: List[VirtualItem] = Field(default_factory=list)
+    deals: List[DoubleDeal] = Field(default_factory=list)
     finish_order: bool = False
