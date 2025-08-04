@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>McDonald's Chatbot</title>
+  <script src="/static/chat.js" defer></script>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; }
+    .msg { margin-bottom: 10px; }
+    .user { text-align: right; color: blue; }
+    .bot { text-align: left; color: green; }
+  </style>
+</head>
+<body>
+  <h1>🍔 McDonald's Chatbot</h1>
+  <div id="chat">
+  </div>
+  <form id="chat-form">
+    <input id="user-input" type="text" autocomplete="off" required />
+    <button type="submit">Send</button>
+  </form>
+</body>
+</html>

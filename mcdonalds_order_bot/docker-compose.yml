@@ -1,0 +1,16 @@
+services:
+  app:
+    build:
+      context: .
+    container_name: mcdonalds_order_bot
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: poetry run uvicorn src.server:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/app/src
+
+    restart: unless-stopped
