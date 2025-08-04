@@ -1,7 +1,8 @@
-from .menu_builder import build_check_menu, ingredient_menu, price_menu, deals_menu
+from . import CHECK_MENU, INGREDIENT_MENU, PRICE_MENU, DEALS_MENU
 from .ai_module import LLMClient
 import functools
 import asyncio
+from itertools import zip_longest
 
 class OrderManager:
     
@@ -10,11 +11,10 @@ class OrderManager:
         self.order = None
         self.asked_dessert = False
         self.state = "greeting"
-        self.check_menu = build_check_menu()
-        self.ingredient_menu = ingredient_menu()
-        self.price_menu = price_menu()
-        self.deals_menu = deals_menu()
-        print(self.deals_menu)
+        self.check_menu = CHECK_MENU
+        self.ingredient_menu = INGREDIENT_MENU
+        self.price_menu = PRICE_MENU
+        self.deals_menu = DEALS_MENU
         self.client = LLMClient()
         self.history = []
         self.queue = asyncio.Queue()
@@ -255,6 +255,8 @@ Your order:
                 return False, f"{', '.join(missing).strip(', ')} are not valid ingredients for {item['name']}"
         for deal in self.order['deals']:
             for item in deal.values():
+                if item is None:
+                    continue
                 ingredients = self.ingredient_menu[item['name']]
                 item_ingredients = item['ingredients']
                 missing = list(set(item_ingredients['extra']) - set(ingredients['extra']))
@@ -282,12 +284,47 @@ Your order:
                 return False, f"{', '.join(missing).strip(', ')} are not valid ingredients for {item_name} in {item['name']}"
         return True, "validated"
 
+    def count_burgers(self):
+        burger_lst = {'Small Double Deal': [], 'Big Double Deal': []}
+        for item in self.current_state['items']:
+            if item['type'] != "burgers":
+                continue
+            item['price'] = self.price_menu['items'][item['name']]
+            if item['name'] in self.deals_menu['Small Double Deal']:
+                burger_lst['Small Double Deal'].append(item)
+            else:
+                burger_lst['Big Double Deal'].append(item)
+
+        for key, dct in burger_lst.items():
+            dct.sort(key=lambda x: x["price"], reverse=True)
+            burger_lst[key] = list(zip_longest(dct[::2], dct[1::2]))
+        print(burger_lst)
+        total_sum = 0
+        for dct in burger_lst.values():
+            for value in dct:
+                if value[1] is None:
+                    for ingredient in value[0]['ingredients']['extra']:
+                        total_sum += self.price_menu['ingredients'][ingredient]
+                    total_sum += value[0]['price']
+                else:
+                    price = 0
+                    for ingredient in value[0]['ingredients']['extra']:
+                        price += self.price_menu['ingredients'][ingredient]
+                    for ingredient in value[1]['ingredients']['extra']:
+                        price += self.price_menu['ingredients'][ingredient]
+                    price += value[0]['price'] + value[1]['price']
+                    price *= 0.8
+                    total_sum += price
+        return total_sum
+
     def finalize(self):
         items = self.current_state['items']
         sum = 0
         sizes = {"small": 0.75, "medium": 1, "large": 1.25}
-        
+        sum += self.count_burgers()
         for item in items:
+            if item['type'] == "burgers":
+                continue
             price = self.price_menu['items'][item['name']]
             if item['type'] == "combos":
                 if item['sauce']:
