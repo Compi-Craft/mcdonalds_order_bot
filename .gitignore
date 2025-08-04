@@ -5,8 +5,9 @@ __pycache__/
 
 # C extensions
 *.so
-/task_info/
 /exp/
+/app/
+/task_info/
 # Distribution / packaging
 .Python
 build/
